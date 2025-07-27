@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Studio Tracker con Premi</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f8f9fa;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    #accesso, #contenuto {
+      display: none;
+    }
+    .box {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 500px;
+      width: 100%;
+    }
+    input[type="text"], input[type="number"] {
+      padding: 0.5rem;
+      font-size: 1rem;
+      width: 100%;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      background: #2e86de;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 1rem;
+      width: 100%;
+    }
+    button:hover {
+      background: #1b4f72;
+    }
+    .reward {
+      background: #d1f2eb;
+      border-left: 6px solid #1abc9c;
+      margin: 1rem 0;
+      padding: 0.5rem;
+      border-radius: 8px;
+    }
+    .reward img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 0.5rem;
+    }
+    .sezione {
+      margin-top: 1.5rem;
+    }
+    .highlight {
+      background: #fff3cd;
+      padding: 0.5rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body onload="mostraAccesso()">
+  <div class="box" id="accesso">
+    <h2>🔒 Inserisci il nome in codice</h2>
+    <input type="text" id="codice">
+    <button onclick="verificaAccesso()">Accedi</button>
+  </div>
+
+  <div class="box" id="contenuto">
+    <h1>📚 Studio Tracker con Premi</h1>
+
+    <div class="highlight" id="info-premio"></div>
+
+    <label for="ore">Inserisci ore studiate oggi:</label>
+    <input type="number" id="ore" min="0" step="0.5">
+    <button onclick="aggiungiOre()">Aggiungi</button>
+
+    <div class="summary">
+      <p><strong>Ore totali:</strong> <span id="totale">0</span> ⏳</p>
+      <p><strong>Ultimo aggiornamento:</strong> <span id="ultimo"></span></p>
+    </div>
+
+    <div class="sezione">
+      <h2>🎉 Premi appena vinti</h2>
+      <div id="premi-nuovi"></div>
+    </div>
+
+    <div class="sezione">
+      <h2>🗃️ Premi precedenti</h2>
+      <div id="premi-passati"></div>
+    </div>
+  </div>
+
+  <script>
+    const PASSWORD = "CHIARA";
+
+    let oreTotali = Number(localStorage.getItem('oreTotali')) || 0;
+    let premiSbloccati = JSON.parse(localStorage.getItem('premiSbloccati')) || [];
+
+    const immaginiPremi = {
+      'Gratta e Vinci da 5€': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Grattaevinci.jpg/640px-Grattaevinci.jpg',
+      'Bustina Pokemon': 'https://assets.pokemon.com/assets/cms2/img/trading-card-game/_tiles/series/scarlet-violet/01092024/swsh4_promo_en.jpg',
+      'Pacchetto di patatine': 'https://cdn.pixabay.com/photo/2017/02/01/09/05/chips-2021433_960_720.jpg',
+      "Carta Pokemon misteriosa": 'https://images.pokemontcg.io/base1/4_hires.png',
+      "Aperitivo all'Essai": 'https://cdn.pixabay.com/photo/2016/11/29/02/13/appetizer-1869712_1280.jpg',
+      "Spirit of The North 2": 'https://cdn.cloudflare.steamstatic.com/steam/apps/2220020/header.jpg',
+      "Buono regalo da Calliope di 50€": 'https://cdn.pixabay.com/photo/2017/09/23/19/40/gift-2778791_1280.jpg',
+      "Mini-Borsafrigo da lavoro": 'https://m.media-amazon.com/images/I/71GOPeQErYL._AC_SL1500_.jpg',
+      "Buono regalo Croff da 50€": 'https://cdn.pixabay.com/photo/2016/12/26/17/28/gift-1939115_1280.jpg',
+      "Abbonamento Annuale a Chess.Com": 'https://cdn.pixabay.com/photo/2014/04/03/10/32/chess-311562_1280.png',
+      "Cena da Cortile Pantelleria": 'https://cdn.pixabay.com/photo/2017/03/27/13/39/pasta-2178757_1280.jpg',
+      "Buono regalo Croff da 100€": 'https://cdn.pixabay.com/photo/2017/08/06/00/24/voucher-2589230_1280.jpg',
+      "Galoppata in Spiaggia": 'https://cdn.pixabay.com/photo/2016/01/19/17/45/beach-1149146_1280.jpg'
+    };
+
+    const premiMensili = {
+      '07-10': 'Gratta e Vinci da 5€',
+      '07-20': 'Bustina Pokemon',
+      '07-30': 'Pacchetto di patatine',
+      '08-20': 'Bustina Pokemon',
+      '08-40': 'Carta Pokemon misteriosa',
+      '08-60': "Aperitivo all'Essai",
+      '08-80': 'Spirit of The North 2',
+      '08-100': 'Buono regalo da Calliope di 50€',
+      '09-10': 'Gratta e Vinci da 5€',
+      '09-20': 'Bustina Pokemon',
+      '09-30': 'Pacchetto di patatine'
+    };
+
+    const premiTotali = {
+      25: 'Bustina Pokemon',
+      50: 'Mini-Borsafrigo da lavoro',
+      75: 'Buono regalo Croff da 50€',
+      100: 'Abbonamento Annuale a Chess.Com',
+      125: 'Cena da Cortile Pantelleria',
+      150: 'Buono regalo Croff da 50€',
+      175: 'Buono regalo Croff da 100€',
+      200: 'Galoppata in Spiaggia'
+    };
+
+    function mostraAccesso() {
+      document.getElementById('accesso').style.display = 'block';
+    }
+
+    function verificaAccesso() {
+      const codice = document.getElementById('codice').value.trim();
+      if (codice.toUpperCase() === PASSWORD) {
+        document.getElementById('accesso').style.display = 'none';
+        document.getElementById('contenuto').style.display = 'block';
+        aggiornaUI();
+      } else {
+        alert('Codice errato!');
+      }
+    }
+
+    function formattaData(data) {
+      return new Date(data).toLocaleString('it-IT', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      });
+    }
+
+    function aggiungiOre() {
+      const oreInput = document.getElementById('ore');
+      const ore = parseFloat(oreInput.value);
+      if (isNaN(ore) || ore <= 0) return alert('Inserisci un numero valido di ore');
+
+      oreTotali += ore;
+      localStorage.setItem('oreTotali', oreTotali);
+      localStorage.setItem('ultimoAggiornamento', new Date().toISOString());
+
+      const nuoviPremi = controllaPremi();
+      localStorage.setItem('premiSbloccati', JSON.stringify(premiSbloccati));
+
+      oreInput.value = '';
+      aggiornaUI(nuoviPremi);
+    }
+
+    function controllaPremi() {
+      const ora = new Date();
+      const mese = ora.getMonth() + 1;
+      const nuovi = [];
+
+      for (const chiave in premiMensili) {
+        const [m, soglia] = chiave.split('-').map(Number);
+        const id = `M${m}-${soglia}`;
+        if (mese === m && oreTotali >= soglia && !premiSbloccati.find(p => p.tipo === 'mensile' && p.id === id)) {
+          const premio = {
+            tipo: 'mensile',
+            id: id,
+            ore: soglia,
+            nome: premiMensili[chiave],
+            data: ora.toISOString()
+          };
+          premiSbloccati.push(premio);
+          nuovi.push(premio);
+        }
+      }
+
+      for (const soglia in premiTotali) {
+        const sogliaNum = Number(soglia);
+        if (oreTotali >= sogliaNum && !premiSbloccati.find(p => p.tipo === 'generale' && p.ore === sogliaNum)) {
+          const premio = {
+            tipo: 'generale',
+            ore: sogliaNum,
+            nome: premiTotali[sogliaNum],
+            data: ora.toISOString()
+          };
+          premiSbloccati.push(premio);
+          nuovi.push(premio);
+        }
+      }
+
+      return nuovi;
+    }
+
+    function aggiornaUI(nuoviPremi = []) {
+      document.getElementById('totale').textContent = oreTotali;
+      document.getElementById('ultimo').textContent = formattaData(localStorage.getItem('ultimoAggiornamento') || new Date());
+
+      const passati = document.getElementById('premi-passati');
+      const nuovi = document.getElementById('premi-nuovi');
+      const infoPremio = document.getElementById('info-premio');
+
+      nuovi.innerHTML = '';
+      passati.innerHTML = '';
+      infoPremio.innerHTML = '';
+
+      const mese = new Date().toLocaleString('it-IT', { month: 'long' });
+
+      // Info prossimo premio mensile
+      const ora = new Date();
+      const m = ora.getMonth() + 1;
+      let prossimaSoglia = null;
+
+      Object.keys(premiMensili).forEach(key => {
+        const [mm, soglia] = key.split('-').map(Number);
+        if (mm === m && oreTotali < soglia) {
+          if (!prossimaSoglia || soglia < prossimaSoglia.soglia) {
+            prossimaSoglia = { soglia, premio: premiMensili[key] };
+          }
+        }
+      });
+
+      if (prossimaSoglia) {
+        infoPremio.innerHTML = `📅 <strong>Mese attuale:</strong> ${mese.charAt(0).toUpperCase() + mese.slice(1)}<br>
+        🎯 Prossimo premio mensile a <strong>${prossimaSoglia.soglia}</strong> ore: <em>${prossimaSoglia.premio}</em>`;
+      }
+
+      // Premi
+      premiSbloccati.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'reward';
+        const nomePremio = p.nome || premiTotali[p.ore] || `Premio #${p.ore}`;
+        div.innerHTML = `🎁 <strong>${nomePremio}</strong><br><small>${formattaData(p.data)}</small>`;
+        if (immaginiPremi[nomePremio]) {
+          const img = document.createElement('img');
+          img.src = immaginiPremi[nomePremio];
+          img.alt = nomePremio;
+          div.appendChild(img);
+        }
+
+        if (nuoviPremi.includes(p)) {
+          nuovi.appendChild(div);
+        } else {
+          passati.appendChild(div);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
